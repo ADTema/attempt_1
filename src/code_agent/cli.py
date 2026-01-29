@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 
 import typer
@@ -21,7 +22,7 @@ def _get_env() -> Env:
     token = os.getenv("AGENT_GH_TOKEN", "").strip()
     repo = os.getenv("GITHUB_REPOSITORY", "").strip()
     issue_number_raw = os.getenv("ISSUE_NUMBER", "").strip()
-    base_branch = os.getenv("BASE_BRANCH", "main").strip() or "main"
+    base_branch = (os.getenv("BASE_BRANCH", "main") or "main").strip()
 
     if not token:
         raise typer.BadParameter("AGENT_GH_TOKEN is missing")
@@ -38,43 +39,30 @@ def _run(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True)
 
 
-@app.command()
-def run() -> None:
-    """
-    Run agent in GitHub Actions:
-    - creates branch
-    - commits a trivial change
-    - pushes and opens PR
-    """
+def _agent_logic() -> None:
     env = _get_env()
 
     branch = f"agent/issue-{env.issue_number}"
     filename = "_agent_ok.txt"
     content = f"ok from issue #{env.issue_number}\n"
 
-    # Ensure git identity exists for commits inside GH Actions runner
     _run(["git", "config", "user.name", "code-agent"])
     _run(["git", "config", "user.email", "code-agent@users.noreply.github.com"])
 
-    # Ensure we are on base branch and up-to-date
     _run(["git", "fetch", "origin", env.base_branch])
     _run(["git", "checkout", env.base_branch])
     _run(["git", "reset", "--hard", f"origin/{env.base_branch}"])
 
-    # Create/overwrite branch
     _run(["git", "checkout", "-B", branch])
 
-    # Make a trivial change
     with open(filename, "w", encoding="utf-8") as f:
         f.write(content)
 
     _run(["git", "add", filename])
     _run(["git", "commit", "-m", f"chore: agent ok for issue #{env.issue_number}"])
 
-    # Push branch using token-auth remote already set in workflow
     _run(["git", "push", "-u", "origin", branch, "--force"])
 
-    # Create PR via GitHub CLI (works reliably in Actions)
     _run(
         [
             "gh",
@@ -94,7 +82,28 @@ def run() -> None:
     typer.echo("done")
 
 
+@app.command()
+def run() -> None:
+    """Run agent in GitHub Actions (MVP)."""
+    _agent_logic()
+
+
 def main() -> None:
+    # Жёстко принимаем "run" даже если Typer/Click где-то странно ведёт себя.
+    argv = sys.argv[1:]
+
+    if not argv:
+        _agent_logic()
+        return
+
+    if argv[0] in ("-h", "--help"):
+        app()
+        return
+
+    if argv[0] == "run":
+        _agent_logic()
+        return
+
     app()
 
 

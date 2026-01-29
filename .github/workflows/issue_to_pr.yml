@@ -35,7 +35,9 @@ jobs:
 
       - name: Run Code Agent (MVP)
         env:
+          PYTHONPATH: src
           AGENT_GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
