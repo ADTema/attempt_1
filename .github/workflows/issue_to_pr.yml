@@ -13,18 +13,20 @@ jobs:
   run-agent:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout (use github.token for checkout)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-          token: ${{ github.token }}
 
-      - name: Configure git auth for agent (push/PR)
+      - name: Configure git auth for push (use AGENT_GH_TOKEN)
+        env:
+          AGENT_GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          git remote set-url origin https://x-access-token:${{ secrets.AGENT_GH_TOKEN }}@github.com/${{ github.repository }}.git
-
-
+          git remote set-url origin "https://x-access-token:${AGENT_GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git config user.name "code-agent"
+          git config user.email "code-agent@users.noreply.github.com"
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -36,6 +38,15 @@ jobs:
           python -m pip install -U pip
           pip install -e ".[dev]"
 
+      - name: Debug installed code-agent
+        run: |
+          which python || true
+          python -V
+          python -c "import code_agent, code_agent.cli; import inspect; print('cli file:', inspect.getfile(code_agent.cli))"
+          python -c "import pkgutil; print('code_agent in path:', any(m.name=='code_agent' for m in pkgutil.iter_modules()))"
+          code-agent --help || true
+          code-agent run --help || true
+
       - name: Run Code Agent (MVP)
         env:
           AGENT_GH_TOKEN: ${{ secrets.AGENT_GH_TOKEN }}
@@ -43,4 +54,4 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           BASE_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
-          code-agent run
+          python -m code_agent.cli run
