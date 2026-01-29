@@ -18,6 +18,10 @@ jobs:
         with:
           token: ${{ secrets.AGENT_GH_TOKEN }}
           fetch-depth: 0
+          persist-credentials: false
+      - name: Configure git auth for push
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.AGENT_GH_TOKEN }}@github.com/${{ github.repository }}.git
 
       - name: Setup Python
         uses: actions/setup-python@v5
