@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import typer
 from github import Github
 
-app = typer.Typer(add_completion=False)
+app = typer.Typer(add_completion=False, help="Run agent in GitHub Actions.")
 
 
 @dataclass(frozen=True)
@@ -48,10 +48,11 @@ def _sanitize_branch(s: str) -> str:
 @app.command()
 def run() -> None:
     """
-    Entry point for GitHub Actions.
-    Reads env: AGENT_GH_TOKEN, GITHUB_REPOSITORY, ISSUE_NUMBER, BASE_BRANCH
-    Creates a branch, commits a small change, opens a PR, comments back to the issue.
+    Creates a branch+commit+PR from the opened issue, then comments back with PR link.
     """
+    # важная диагностика: чтобы сразу видеть, какой файл реально запущен в Actions
+    typer.echo(f"[debug] cli __file__ = {__file__}")
+
     ctx = _get_ctx()
 
     gh = Github(ctx.token)
@@ -72,8 +73,6 @@ def run() -> None:
         "```\n"
     )
 
-    # Make a deterministic tiny change so we can verify the whole pipeline.
-    # You can later replace this with real patch logic.
     file_path = "_agent_ok.txt"
     content = f"ok (issue #{ctx.issue_number})\n"
 
@@ -82,25 +81,17 @@ def run() -> None:
     typer.echo(f"Base branch: {ctx.base_branch}")
     typer.echo(f"Branch: {branch_name}")
 
-    # Ensure base is up to date locally
     _sh(["git", "fetch", "origin", ctx.base_branch])
     _sh(["git", "checkout", "-B", ctx.base_branch, f"origin/{ctx.base_branch}"])
-
-    # Create branch
     _sh(["git", "checkout", "-b", branch_name])
 
-    # Write file
     with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
 
-    # Commit
     _sh(["git", "add", file_path])
     _sh(["git", "commit", "-m", f"chore: agent run for issue #{ctx.issue_number}"])
-
-    # Push
     _sh(["git", "push", "-u", "origin", branch_name])
 
-    # Create PR (via API)
     pr = repo.create_pull(
         title=pr_title,
         body=pr_body,
@@ -109,15 +100,5 @@ def run() -> None:
         draft=False,
     )
 
-    # Comment back to issue
     issue.create_comment(f"✅ PR created: {pr.html_url}")
-
     typer.echo(f"PR: {pr.html_url}")
-
-
-def main() -> None:
-    app()
-
-
-if __name__ == "__main__":
-    main()
