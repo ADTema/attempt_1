@@ -16,13 +16,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ github.token }}
           fetch-depth: 0
           persist-credentials: false
+          token: ${{ github.token }}
 
-      - name: Configure git auth for agent
+      - name: Configure git auth for agent (push/PR)
         run: |
           git remote set-url origin https://x-access-token:${{ secrets.AGENT_GH_TOKEN }}@github.com/${{ github.repository }}.git
+
 
 
       - name: Setup Python
