@@ -20,7 +20,7 @@ dev = [
 ]
 
 [project.scripts]
-code-agent = "code_agent.cli:app"
+code-agent = "code_agent.cli:main"
 
 
 [tool.setuptools]
