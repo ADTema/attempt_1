@@ -70,6 +70,8 @@ def run() -> None:
     # Create/update file on that branch
     try:
         existing = repo.get_contents(path, ref=branch)
+        if isinstance(existing, list):
+            raise RuntimeError(f"Expected file at {path}, got directory")
         repo.update_file(
             path=path,
             message=f"chore: update agent file for issue #{env.issue_number}",
